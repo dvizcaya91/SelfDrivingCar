@@ -9,8 +9,11 @@ from cv_bridge import CvBridge
 from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
+from cv_bridge import CvBridge
 import yaml
 from scipy.spatial import KDTree
+import numpy as np
+from PIL import Image as pilImage
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -46,6 +49,7 @@ class TLDetector(object):
         self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
 
+        self.bridge = CvBridge()
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
@@ -80,8 +84,8 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
 
-        if self.image_counter % 10 == 0:
-            rospy.logwarn("Van 10")
+        if self.image_counter % 4 == 0:
+
             light_wp, state = self.process_traffic_lights()
 
             '''
@@ -127,17 +131,19 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        return light.state
-        '''
-        if(not self.has_image):
+
+        if (not self.has_image):
             self.prev_light_loc = None
             return False
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        if ((image[:, :, 2] > 200) & (image[:, :, 1] < 50) & (image[:, :, 0] < 50)).sum() > 50:
+            state = TrafficLight.RED
+        else:
+            state = TrafficLight.UNKNOWN
 
-        #Get classification
-        return self.light_classifier.get_classification(cv_image)
-        '''
+        return state
+
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
